@@ -31,6 +31,22 @@ const normalizePhone = (phone) => {
   return s.replace(/[^\d+]/g, '');
 };
 
+const cleanNumber = (value) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+const parseDateParam = (value) => {
+  const s = cleanString(value);
+  if (!s) return undefined;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
 const error400 = (message, details) => {
   const err = new Error(message);
   err.status = 400;
@@ -107,4 +123,59 @@ const listAllQueries = asyncHandler(async (req, res) => {
   res.status(200).json(queries);
 });
 
-module.exports = { createPropertyQuery, listQueriesForProperty, listAllQueries };
+const searchAllQueries = asyncHandler(async (req, res) => {
+  if (!requireDb(res)) return;
+
+  const q = cleanString(req.query.q);
+  const status = cleanString(req.query.status);
+  const propertyId = cleanString(req.query.propertyId);
+  const userId = cleanString(req.query.userId);
+  const from = parseDateParam(req.query.from);
+  const to = parseDateParam(req.query.to);
+
+  const page = Math.max(1, cleanNumber(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, cleanNumber(req.query.limit) || 20));
+
+  const filter = {};
+
+  if (q) {
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(safe, 'i');
+    filter.$or = [{ name: regex }, { email: regex }, { phone: regex }, { message: regex }, { notes: regex }];
+  }
+
+  if (status) {
+    if (!['New', 'Contacted', 'Closed'].includes(status)) throw error400('Invalid status');
+    filter.status = status;
+  }
+
+  if (propertyId) {
+    if (!isValidObjectId(propertyId)) throw error400('Invalid propertyId');
+    filter.property = propertyId;
+  }
+
+  if (userId) {
+    if (!isValidObjectId(userId)) throw error400('Invalid userId');
+    filter.user = userId;
+  }
+
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = startOfDay(from);
+    if (to) filter.createdAt.$lte = endOfDay(to);
+  }
+
+  const query = PropertyQuery.find(filter)
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .populate('user', 'name email phone')
+    .populate('property', 'title propertyType listingType price city state');
+
+  const [items, total] = await Promise.all([query.exec(), PropertyQuery.countDocuments(filter)]);
+  const pages = Math.max(1, Math.ceil(total / limit));
+
+  res.status(200).json({ items, meta: { total, page, pages, limit } });
+});
+
+module.exports = { createPropertyQuery, listQueriesForProperty, listAllQueries, searchAllQueries };

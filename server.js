@@ -9,6 +9,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const propertyRoutes = require('./src/routes/propertyRoutes');
 const { router: propertyQueryRoutes, adminRouter: allQueryRoutes } = require('./src/routes/propertyQueryRoutes');
+const statsRoutes = require('./src/routes/statsRoutes');
 const { connectDB } = require('./src/config/db');
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/properties/:propertyId/queries', propertyQueryRoutes);
 app.use('/api/queries', allQueryRoutes);
+app.use('/api/admin/stats', statsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

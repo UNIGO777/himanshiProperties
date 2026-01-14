@@ -1,5 +1,5 @@
 const express = require('express');
-const { createPropertyQuery, listQueriesForProperty, listAllQueries } = require('../controllers/propertyQueryController');
+const { createPropertyQuery, listQueriesForProperty, listAllQueries, searchAllQueries } = require('../controllers/propertyQueryController');
 const { protect, requireAdmin, requireUser } = require('../middlewares/auth');
 
 const router = express.Router({ mergeParams: true });
@@ -8,6 +8,7 @@ router.post('/', protect, requireUser, createPropertyQuery);
 router.get('/', protect, listQueriesForProperty);
 
 const adminRouter = express.Router();
+adminRouter.get('/search', protect, requireAdmin, searchAllQueries);
 adminRouter.get('/', protect, requireAdmin, listAllQueries);
 
 module.exports = { router, adminRouter };
