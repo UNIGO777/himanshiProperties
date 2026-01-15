@@ -7,6 +7,7 @@ const UserSchema = new mongoose.Schema(
     phone: { type: String, required: true, trim: true },
     password: { type: String, required: true },
     isVerified: { type: Boolean, default: false },
+    isBlocked: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );
